@@ -224,22 +224,36 @@ async function fetchQuote(productId, optionId) {
 }
 
 /** Product catalog detail (name/options) — plain JSON, no handshake needed. */
+const detailCache = new Map(); // productId -> { at, detail }; options rarely change
+const DETAIL_TTL_MS = 5 * 60 * 1000;
+
 async function getProductDetail(productId) {
+  const hit = detailCache.get(String(productId));
+  if (hit && Date.now() - hit.at < DETAIL_TTL_MS) return hit.detail;
   const res = await getJson(`${BASE}/api/v2/items/${encodeURIComponent(productId)}`);
   if (res.status === 404) throw new FatalError('unknown product');
   if (!res.ok) throw new RetryableError(`product detail ${res.status}`);
-  return res.json(); // { id, name, brand, ..., optionAxis, options: [{id,label}] }
+  const detail = await res.json();
+  detailCache.set(String(productId), { at: Date.now(), detail });
+  return detail; // { id, name, brand, ..., optionAxis, options: [{id,label}] }
 }
 
 /**
  * Live search against the store. The listings endpoint ignores server-side
  * query params, so we pull all pages (16 x 60) with modest concurrency and
  * substring-match locally. Details (options) are fetched per match.
+ *
+ * The catalog itself is cached in memory for 5 minutes: it changes rarely,
+ * and re-pulling 16 pages on every keystroke-query would hammer the store
+ * (and invite 429s). Only successful pulls populate the cache.
  */
-async function searchStore(query) {
-  const q = String(query || '').trim().toLowerCase();
-  if (!q) return [];
+let catalogCache = { at: 0, pages: null };
+const CATALOG_TTL_MS = 5 * 60 * 1000;
 
+async function getCatalog() {
+  if (catalogCache.pages && Date.now() - catalogCache.at < CATALOG_TTL_MS) {
+    return catalogCache.pages;
+  }
   const first = await getJson(`${BASE}/api/v2/listings?page=1&limit=${LISTINGS_LIMIT}`);
   if (!first.ok) throw new RetryableError(`catalog ${first.status}`);
   const head = await first.json();
@@ -259,6 +273,15 @@ async function searchStore(query) {
     );
     pages.push(...batch);
   }
+  catalogCache = { at: Date.now(), pages };
+  return pages;
+}
+
+async function searchStore(query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return [];
+
+  const pages = await getCatalog();
 
   // Catalog pages can overlap (same item on two pages), so dedupe by ID.
   const seen = new Set();

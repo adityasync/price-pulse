@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceDot } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceDot, ResponsiveContainer } from 'recharts';
 import { api } from './api';
 
 const badge = (outcome) => ({
@@ -97,16 +97,18 @@ function Detail({ item, onBack }) {
       <h3>Price over time</h3>
       {!loading && chartData.length === 0 && <p>No history yet — wait for the next scheduled scrape.</p>}
       {chartData.length > 0 && (
-        <LineChart width={640} height={280} data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="ts" tickFormatter={(t) => tickLabel(t)} type="number" domain={['auto', 'auto']} />
-          <YAxis domain={['auto', 'auto']} />
-          <Tooltip labelFormatter={(t) => fmtTime(t)} />
-          <Line type="monotone" dataKey="priceNum" connectNulls={false} dot={false} name="price" />
-          {badPoints.map((d, i) => (
-            <ReferenceDot key={i} x={d.ts} y={d.priceNum} r={5} fill="red" stroke="none" />
-          ))}
-        </LineChart>
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="ts" tickFormatter={(t) => tickLabel(t)} type="number" domain={['auto', 'auto']} />
+            <YAxis domain={['auto', 'auto']} width={70} />
+            <Tooltip labelFormatter={(t) => fmtTime(t)} />
+            <Line type="monotone" dataKey="priceNum" connectNulls={false} dot={false} name="price" />
+            {badPoints.map((d, i) => (
+              <ReferenceDot key={i} x={d.ts} y={d.priceNum} r={5} fill="red" stroke="none" />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
       )}
       <p><span style={{ color: 'red' }}>●</span> red dots = failed/missing readings (never interpolated).</p>
 
