@@ -217,6 +217,12 @@ app.get('/export.csv', async (_req, res) => {
 });
 
 // Cron target (cron-job.org POSTs here every 2 hours with X-Cron-Secret).
+// GET on the same path returns 200 info instead of 404, so URL validators
+// and uptime checks that probe with GET don't report the endpoint as dead.
+// GET never triggers a scrape — only POST does.
+app.get('/scrape/all', (_req, res) =>
+  res.json({ info: 'POST here with X-Cron-Secret to run the scheduled scrape', method: 'POST' })
+);
 // One bad product must never abort the batch — per-item catch + continue.
 // All rows of a run share one timestamp so the CSV export can join
 // scrape_log rows to their run's price_history row.
