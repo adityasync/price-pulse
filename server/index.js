@@ -9,6 +9,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Root: service index (prevents a bare-URL 404 confusing humans/uptime checks).
+app.get('/', (_req, res) =>
+  res.json({ service: 'price-pulse', status: 'ok', endpoints: ['/health', '/search', '/track', '/tracked', '/export.csv', '/scrape/all'] })
+);
+
 // Liveness check + Render keep-warm ping target.
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
