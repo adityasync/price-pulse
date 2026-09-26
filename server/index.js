@@ -26,8 +26,19 @@ async function dbInsert(table, row) {
 let scrapeRunning = false;
 
 const app = express();
+app.disable('x-powered-by');
 app.use(cors());
 app.use(express.json());
+// cron-job.org stores only a small response per run: every body on the cron
+// path must stay <1KB of JSON (never HTML). The handlers below guarantee
+// that, plus one-line Render logs so a missed run is diagnosable.
+app.use((err, _req, res, next) => {
+  if (err && (err.type === 'entity.parse.failed' || err instanceof SyntaxError)) {
+    console.log(`[scrape] bad JSON body: ${err.message}`);
+    return res.status(400).json({ error: 'bad json' });
+  }
+  return next(err);
+});
 
 // Root: service index (prevents a bare-URL 404 confusing humans/uptime checks).
 app.get('/', (_req, res) =>
@@ -364,11 +375,17 @@ app.get('/scrape/all', (_req, res) =>
 //  - DB writes retried 3x; a DB failure is recorded in the response, never silent.
 //  - post-scrape email alerts (SendGrid, optional) on price-drop/back-in-stock.
 app.post('/scrape/all', async (req, res) => {
+  const t0 = Date.now();
   if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
+    console.log('[scrape] 401 unauthorized (bad/missing X-Cron-Secret)');
     return res.status(401).json({ error: 'unauthorized' });
   }
-  if (scrapeRunning) return res.status(409).json({ error: 'scrape already running' });
+  if (scrapeRunning) {
+    console.log('[scrape] 409 overlap (previous run still going)');
+    return res.status(409).json({ error: 'scrape already running' });
+  }
   scrapeRunning = true;
+  console.log('[scrape] started');
   try {
     const { data: tracked, error } = await supabase.from('tracked_products').select('*');
     if (error) return res.status(500).json({ error: error.message });
@@ -488,10 +505,25 @@ app.post('/scrape/all', async (req, res) => {
       }
     }
 
-    res.json({ ran: (tracked || []).length, succeeded, failed, skipped, dbErrors });
+    const summary = { ran: (tracked || []).length, succeeded, failed, skipped, dbErrors };
+    console.log(`[scrape] finished in ${Date.now() - t0}ms ran=${summary.ran} ok=${succeeded} fail=${failed} skip=${skipped} dbErr=${dbErrors.length}`);
+    res.json(summary);
+  } catch (err) {
+    console.log(`[scrape] crashed: ${err && err.message ? err.message : err}`);
+    res.status(500).json({ error: 'scrape failed' });
   } finally {
     scrapeRunning = false;
   }
+});
+
+// Tiny JSON for everything else: prevents Express/Render from ever serving a
+// large HTML error page to cron-job.org (its stored-response limit marks big
+// bodies as "Failed (output too large)" even when the scrape itself is fine).
+app.use((_req, res) => res.status(404).json({ error: 'not found' }));
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
+  console.log(`[http] 500: ${err && err.message ? err.message : err}`);
+  res.status(500).json({ error: 'internal' });
 });
 
 function csvEscape(val) {
