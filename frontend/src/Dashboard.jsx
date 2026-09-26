@@ -40,6 +40,15 @@ function AlertBadge({ alert }) {
   );
 }
 
+function timeAgo(ts) {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(ts).getTime()) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 // Same-day runs would all read "9/26/2026" — include clock time instead.
 function tickLabel(t) {
   const d = new Date(t);
@@ -151,6 +160,7 @@ function Detail({ item, onBack }) {
 export default function Dashboard() {
   const [tracked, setTracked] = useState([]);
   const [alerts, setAlerts] = useState({});
+  const [latest, setLatest] = useState({});
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -165,13 +175,18 @@ export default function Dashboard() {
         const settled = await Promise.allSettled(items.map((t) => api.history(t.productId, t.optionId)));
         if (!live) return;
         const map = {};
+        const last = {};
         settled.forEach((r, i) => {
           if (r.status === 'fulfilled') {
-            const a = alertFor(r.value.history || []);
+            const hist = r.value.history || [];
+            const a = alertFor(hist);
             if (a) map[items[i].id] = a;
+            const ok = hist.filter((h) => h.outcome === 'success' && h.price !== null);
+            if (ok.length) last[items[i].id] = ok[ok.length - 1];
           }
         });
         setAlerts(map);
+        setLatest(last);
       })
       .catch((e) => live && setError(e.message))
       .finally(() => live && setLoading(false));
@@ -192,7 +207,12 @@ export default function Dashboard() {
           <li key={t.id} style={{ border: '1px solid #ddd', margin: '8px 0', padding: 12 }}>
             <strong>{t.name}</strong> <small>({t.optionLabel})</small>
             <AlertBadge alert={alerts[t.id]} />
-            <div><button onClick={() => setSelected(t)}>Open detail</button></div>
+            {latest[t.id] && (
+              <div className="latest">
+                ₹{Number(latest[t.id].price).toLocaleString('en-IN')} · {latest[t.id].stock} · <small>{timeAgo(latest[t.id].timestamp)}</small>
+              </div>
+            )}
+            <div style={{ marginTop: 6 }}><button onClick={() => setSelected(t)}>Open detail</button></div>
           </li>
         ))}
       </ul>

@@ -57,6 +57,13 @@ export default function Search() {
         {results.map((r) => (
           <li key={r.productId} style={{ border: '1px solid #ddd', margin: '8px 0', padding: 12 }}>
             <strong>{r.name}</strong> <small>id: {r.productId}</small>
+            {(r.brand || r.category || r.sku) && (
+              <div style={{ marginTop: 4 }}>
+                {[r.brand, r.category, r.sku].filter(Boolean).map((c) => (
+                  <span key={c} className="chip">{c}</span>
+                ))}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
               <select
                 value={picked[r.productId] || (r.options[0] && r.options[0].optionId) || ''}

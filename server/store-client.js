@@ -306,6 +306,9 @@ async function searchStore(query) {
       results.push({
         productId: String(detail.id),
         name: detail.name,
+        brand: detail.brand || null,
+        category: detail.category || null,
+        sku: detail.sku || null,
         options: (detail.options || []).map((o) => ({ optionId: o.id, label: o.label })),
       });
     } catch {
