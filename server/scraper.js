@@ -32,7 +32,17 @@ async function scrapeProduct(productId, optionId) {
           );
         }
         attempts.push({ attemptNumber, outcome: 'success' });
-        return { outcome: 'success', price, stock, attempts };
+        // extras is an additive extension (contract fields above unchanged):
+        // display-only quote detail for the dashboard's product-info panel.
+        const extras = {
+          mrp: quote.raw.l ?? null,
+          sale: quote.raw.k ?? null,
+          rating: quote.raw.h ?? null,
+          ratingCount: quote.raw.hn ?? null,
+          seller: quote.raw.vd ?? null,
+          currency: quote.currency ?? null,
+        };
+        return { outcome: 'success', price, stock, attempts, extras };
       } catch (err) {
         // Fatal errors (bad product/option, rejected challenge) won't heal on
         // retry within this run — record this attempt as failed and stop

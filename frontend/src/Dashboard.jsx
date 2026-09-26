@@ -12,6 +12,34 @@ function fmtTime(ts) {
   return new Date(ts).toLocaleString();
 }
 
+// Bonus: in-app alerts computed from the last two successful readings.
+// Returns null | { type: 'drop', amount } | { type: 'back' }.
+function alertFor(history) {
+  const ok = (history || []).filter((h) => h.outcome === 'success' && h.price !== null);
+  if (ok.length < 2) return null;
+  const prev = ok[ok.length - 2];
+  const cur = ok[ok.length - 1];
+  if (Number(cur.price) < Number(prev.price))
+    return { type: 'drop', amount: Number(prev.price) - Number(cur.price) };
+  const wasOut = /sold out/i.test(prev.stock || '');
+  const isIn = !/sold out/i.test(cur.stock || '');
+  if (wasOut && isIn) return { type: 'back' };
+  return null;
+}
+
+function AlertBadge({ alert }) {
+  if (!alert) return null;
+  return alert.type === 'drop' ? (
+    <span style={{ background: '#d4edda', color: '#155724', padding: '2px 8px', borderRadius: 12, marginLeft: 8 }}>
+      ↓ price drop ₹{alert.amount.toLocaleString('en-IN')}
+    </span>
+  ) : (
+    <span style={{ background: '#cce5ff', color: '#004085', padding: '2px 8px', borderRadius: 12, marginLeft: 8 }}>
+      back in stock
+    </span>
+  );
+}
+
 // Same-day runs would all read "9/26/2026" — include clock time instead.
 function tickLabel(t) {
   const d = new Date(t);
@@ -47,11 +75,22 @@ function Detail({ item, onBack }) {
   // Failed runs carry price=null so they can't be plotted — the line gap
   // (connectNulls=false) plus the table below keep them visible, not hidden.
   const badPoints = chartData.filter((d) => d.outcome !== 'success' && d.priceNum !== null);
+  const alert = useMemo(() => alertFor(history), [history]);
+  const meta = item.meta || {};
+  const lastQuote = meta.lastQuote || {};
 
   return (
     <div>
       <button onClick={onBack}>← Back to tracked</button>
-      <h2>{item.name} <small>({item.optionLabel})</small></h2>
+      <h2>{item.name} <small>({item.optionLabel})</small><AlertBadge alert={alert} /></h2>
+      {(meta.brand || meta.category || lastQuote.seller) && (
+        <p style={{ color: '#444' }}>
+          {[meta.brand, meta.category, meta.sku && `SKU ${meta.sku}`].filter(Boolean).join(' · ')}
+          {lastQuote.seller && <> · sold by <strong>{lastQuote.seller}</strong></>}
+          {lastQuote.rating != null && <> · ★ {lastQuote.rating}{lastQuote.ratingCount ? ` (${Number(lastQuote.ratingCount).toLocaleString('en-IN')} ratings)` : ''}</>}
+          {lastQuote.mrp != null && <> · MRP ₹{Number(lastQuote.mrp).toLocaleString('en-IN')}</>}
+        </p>
+      )}
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
       {loading && <p>Loading price history… (first load after idle can take ~30–60s while the free backend wakes up)</p>}
 
@@ -109,15 +148,32 @@ function Detail({ item, onBack }) {
 
 export default function Dashboard() {
   const [tracked, setTracked] = useState([]);
+  const [alerts, setAlerts] = useState({});
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let live = true;
     api.tracked()
-      .then((d) => setTracked(d.tracked || []))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .then(async (d) => {
+        const items = d.tracked || [];
+        if (live) setTracked(items);
+        // List-view alert badges: one history fetch per tracked product.
+        const settled = await Promise.allSettled(items.map((t) => api.history(t.productId, t.optionId)));
+        if (!live) return;
+        const map = {};
+        settled.forEach((r, i) => {
+          if (r.status === 'fulfilled') {
+            const a = alertFor(r.value.history || []);
+            if (a) map[items[i].id] = a;
+          }
+        });
+        setAlerts(map);
+      })
+      .catch((e) => live && setError(e.message))
+      .finally(() => live && setLoading(false));
+    return () => { live = false; };
   }, []);
 
   if (selected) return <Detail item={selected} onBack={() => setSelected(null)} />;
@@ -133,6 +189,7 @@ export default function Dashboard() {
         {tracked.map((t) => (
           <li key={t.id} style={{ border: '1px solid #ddd', margin: '8px 0', padding: 12 }}>
             <strong>{t.name}</strong> <small>({t.optionLabel})</small>
+            <AlertBadge alert={alerts[t.id]} />
             <div><button onClick={() => setSelected(t)}>Open detail</button></div>
           </li>
         ))}

@@ -73,7 +73,8 @@ npm run scrape:headed      # verbose single run for the recording deliverable
 
 ## Design note (submission)
 
-See `DESIGN_NOTE.md` (to be finalized at submission): Phase 0 decision
-(HTTP handshake over Playwright) and why, retry/validation approach, and what
-the first implementation attempt got wrong (placeholder selectors, Playwright
-assumption, wrong backoff, schema drift) + how it was corrected.
+See `DESIGN_NOTE.md`: Phase 0 decision (HTTP handshake over Playwright) and
+why, retry/validation approach, and what the first implementation attempt got
+wrong plus corrections. Bonus features: in-app price-drop/back-in-stock
+badges, product info panel (brand/category/seller/MRP/rating), CI via GitHub
+Actions (`.github/workflows/ci.yml`).

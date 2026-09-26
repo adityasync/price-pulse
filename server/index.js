@@ -103,7 +103,7 @@ app.post('/track', async (req, res) => {
 app.get('/tracked', async (_req, res) => {
   const { data, error } = await supabase
     .from('tracked_products')
-    .select('id, product_id, option_id, option_label, added_at, products ( name )')
+    .select('id, product_id, option_id, option_label, added_at, products ( name, raw_meta )')
     .order('added_at', { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
   res.json({
@@ -114,6 +114,7 @@ app.get('/tracked', async (_req, res) => {
       optionId: t.option_id,
       optionLabel: t.option_label,
       addedAt: t.added_at,
+      meta: (t.products && t.products.raw_meta) || null, // brand/category/sku + lastQuote extras
     })),
   });
 });
@@ -263,6 +264,24 @@ app.post('/scrape/all', async (req, res) => {
       stock: result.outcome === 'success' ? result.stock : null,
       outcome: result.outcome, // 'success' (even after retries) or 'failed'; per-attempt detail is in scrape_log
     });
+
+    // Stash display-only quote detail for the dashboard info panel.
+    // Best-effort: meta must never break scrape logging.
+    if (result.outcome === 'success' && result.extras) {
+      try {
+        const { data: prod } = await supabase
+          .from('products')
+          .select('raw_meta')
+          .eq('id', t.product_id)
+          .single();
+        await supabase
+          .from('products')
+          .update({ raw_meta: { ...((prod && prod.raw_meta) || {}), lastQuote: result.extras } })
+          .eq('id', t.product_id);
+      } catch {
+        /* ignore — logging above already succeeded */
+      }
+    }
 
     for (const a of result.attempts) {
       await supabase.from('scrape_log').insert({
