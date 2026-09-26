@@ -185,6 +185,24 @@ export default function Dashboard() {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [structure, setStructure] = useState(null);
+  const [savingFreq, setSavingFreq] = useState(null);
+
+  useEffect(() => {
+    api.structureCheck().then(setStructure).catch(() => setStructure({ ok: false, summary: 'structure check unreachable' }));
+  }, []);
+
+  async function changeFrequency(id, frequencyMinutes) {
+    setSavingFreq(id);
+    try {
+      await api.setFrequency(id, Number(frequencyMinutes));
+      setTracked((ts) => ts.map((t) => (t.id === id ? { ...t, frequencyMinutes: Number(frequencyMinutes) } : t)));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSavingFreq(null);
+    }
+  }
 
   useEffect(() => {
     let live = true;
@@ -234,6 +252,11 @@ export default function Dashboard() {
   return (
     <section>
       <h1>Dashboard</h1>
+      {structure && !structure.ok && (
+        <p style={{ background: '#f8d7da', color: '#721c24', padding: 8, borderRadius: 4 }}>
+          ⚠ Store structure change? {structure.summary || 'check failed'} — new readings may be unreliable until the scraper is reviewed. (<small>{(structure.checks || []).filter((c) => !c.ok).map((c) => `${c.name}: ${c.detail}`).join('; ')}</small>)
+        </p>
+      )}
       <p>
         <a href={api.exportCsvUrl()}><button>Export CSV</button></a>{' '}
         <button onClick={previewCsv} style={{ background: '#fff', color: 'var(--accent)', border: '1px solid var(--accent)' }}>
@@ -266,7 +289,20 @@ export default function Dashboard() {
                 ₹{Number(latest[t.id].price).toLocaleString('en-IN')} · {latest[t.id].stock} · <small>{timeAgo(latest[t.id].timestamp)}</small>
               </div>
             )}
-            <div style={{ marginTop: 6 }}><button onClick={() => setSelected(t)}>Open detail</button></div>
+            <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}><button onClick={() => setSelected(t)}>Open detail</button>
+              <label style={{ fontSize: '0.8rem' }}>
+                every{' '}
+                <select
+                  value={t.frequencyMinutes || 120}
+                  disabled={savingFreq === t.id}
+                  onChange={(e) => changeFrequency(t.id, e.target.value)}
+                >
+                  {[30, 60, 120, 360, 720].map((m) => (
+                    <option key={m} value={m}>{m >= 60 ? `${m / 60}h` : `${m}m`}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </li>
         ))}
       </ul>

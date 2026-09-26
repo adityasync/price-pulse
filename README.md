@@ -17,7 +17,9 @@ every 2 hours, chart history, inspect per-attempt logs, export CSV.
 ## Setup
 
 ```bash
-# 1. Database: run schema.sql in Supabase's SQL editor.
+# 1. Database: run schema.sql in Supabase's SQL editor (safe to re-run —
+#    it includes the bonus frequency column plus an idempotent ALTER tail
+#    for DBs created before the bonus).
 # 2. Backend:
 cd server
 npm install
@@ -48,6 +50,24 @@ npm run scrape:headed      # verbose single run for the recording deliverable
 - Runs are paced ~2s apart: live testing showed the store 429s bursts of handshakes.
 - Optional keep-warm: if Render cold starts cause missed windows, add a second
   cron-job.org job hitting `GET /health` every ~10–14 minutes.
+- Hardening: `POST /scrape/all` has an overlap guard (concurrent run → 409),
+  DB writes retried 3×, jittered pacing, per-product frequency gating
+  (`frequency_minutes`, default 120 — run cron every 30 min only if you use
+  custom frequencies), `skipped` count in the response.
+
+## Bonus features (all implemented)
+
+- **Alerts:** in-app price-drop/back-in-stock badges (list + detail) + optional
+  SendGrid email (set `SENDGRID_API_KEY` + `ALERT_TO_EMAIL`; no-op otherwise).
+- **Multi-product dashboard + extras:** tracked list with latest price/stock,
+  product panel (brand/category/SKU/seller/MRP/rating).
+- **Change detection:** `GET /structure-check` validates manifest/listings/
+  detail/handshake shapes; dashboard shows a red banner when `ok:false`.
+- **Configurable frequency:** `PATCH /tracked/:id { frequencyMinutes 15..10080 }`
+  or the per-row dropdown; `/scrape/all` skips not-due items (see `skipped`).
+- **Multi-option in one run:** `POST /track/bulk { productId, options[] }` +
+  "Track all N" button; `/scrape/all` scrapes every tracked option each batch.
+- **CI/CD:** `.github/workflows/ci.yml` (backend `node --check`, frontend build).
 
 ## Environment variables
 
@@ -59,6 +79,9 @@ npm run scrape:headed      # verbose single run for the recording deliverable
 | `CRON_SECRET` | backend | Shared secret required on `/scrape/all` |
 | `PORT` | backend | Server port (Render sets automatically) |
 | `VITE_API_BASE_URL` | frontend | Deployed backend base URL |
+| `SENDGRID_API_KEY` | backend | Optional: enables email alerts |
+| `ALERT_TO_EMAIL` | backend | Optional: alert recipient |
+| `ALERT_FROM_EMAIL` | backend | Optional: sender (default alerts@price-pulse.local) |
 
 ## Deployment
 
@@ -75,6 +98,7 @@ npm run scrape:headed      # verbose single run for the recording deliverable
 
 See `DESIGN_NOTE.md`: Phase 0 decision (HTTP handshake over Playwright) and
 why, retry/validation approach, and what the first implementation attempt got
-wrong plus corrections. Bonus features: in-app price-drop/back-in-stock
-badges, product info panel (brand/category/seller/MRP/rating), CI via GitHub
-Actions (`.github/workflows/ci.yml`).
+wrong plus corrections. Bonus features: all six implemented (in-app + SendGrid
+alerts, multi-product dashboard + info panel, `/structure-check` change
+detection, per-product frequency, bulk multi-option tracking, CI via GitHub
+Actions (`.github/workflows/ci.yml`)).

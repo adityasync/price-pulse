@@ -40,6 +40,25 @@ export default function Search() {
     }
   }
 
+  // Bonus: track ALL options of a product in one call — /scrape/all then
+  // scrapes them together in one batch run.
+  async function trackAll(r) {
+    setTracking(`${r.productId}:all`);
+    setError(null);
+    try {
+      const data = await api.trackBulk(
+        r.productId,
+        r.options.map((o) => ({ optionId: o.optionId, optionLabel: o.label }))
+      );
+      const ok = (data.results || []).filter((x) => x.ok).length;
+      alert(`Tracking ${ok}/${r.options.length} options of ${r.name}`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setTracking(null);
+    }
+  }
+
   return (
     <section>
       <h1>Search the store</h1>
@@ -76,6 +95,11 @@ export default function Search() {
               <button onClick={() => track(r)} disabled={tracking === r.productId}>
                 {tracking === r.productId ? 'Tracking…' : 'Track'}
               </button>
+              {r.options.length > 1 && (
+                <button onClick={() => trackAll(r)} disabled={tracking === `${r.productId}:all`} title="Track every option of this product">
+                  {tracking === `${r.productId}:all` ? 'Tracking…' : `Track all ${r.options.length}`}
+                </button>
+              )}
             </div>
           </li>
         ))}

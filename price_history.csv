@@ -1,0 +1,16 @@
+product_id,product_name,option,timestamp,price,stock,outcome
+2321,Lumeno Mirrorless Camera Prime,Body only,2026-09-26T11:43:30.936Z,20076,159 units available,success
+2789,Tamarack MIDI Keyboard Aero,Instrument only,2026-09-26T11:43:33.662Z,,,retried
+2789,Tamarack MIDI Keyboard Aero,Instrument only,2026-09-26T11:43:33.662Z,29006,175 units available,success
+2724,Redwick Vlog Camera Aero,Body only,2026-09-26T11:43:37.648Z,168200,33 units available,success
+2321,Lumeno Mirrorless Camera Prime,Body only,2026-09-26T12:27:36.733Z,19353,Sold out,success
+2789,Tamarack MIDI Keyboard Aero,Instrument only,2026-09-26T12:27:41.262Z,25149,Sold out,success
+2724,Redwick Vlog Camera Aero,Body only,2026-09-26T12:27:44.590Z,155760,43 units available,success
+2321,Lumeno Mirrorless Camera Prime,Body only,2026-09-26T12:30:26.913Z,19353,Sold out,success
+2789,Tamarack MIDI Keyboard Aero,Instrument only,2026-09-26T12:30:31.192Z,32519,Sold out,success
+2724,Redwick Vlog Camera Aero,Body only,2026-09-26T12:30:34.509Z,155760,43 units available,success
+2321,Lumeno Mirrorless Camera Prime,Body only,2026-09-26T12:51:54.515Z,,,retried
+2321,Lumeno Mirrorless Camera Prime,Body only,2026-09-26T12:51:54.515Z,,,retried
+2321,Lumeno Mirrorless Camera Prime,Body only,2026-09-26T12:51:54.515Z,19353,Sold out,success
+2789,Tamarack MIDI Keyboard Aero,Instrument only,2026-09-26T12:52:05.089Z,22359,145 units available,success
+2724,Redwick Vlog Camera Aero,Body only,2026-09-26T12:52:08.655Z,155760,43 units available,success

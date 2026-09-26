@@ -14,7 +14,7 @@ jobs:
           node-version: 22
       - run: npm install --no-audit --no-fund
         working-directory: server
-      - run: for f in index.js db.js scraper.js store-client.js scripts/verify-live.js scripts/run-headed.js; do node --check "$f" || exit 1; done
+      - run: for f in index.js db.js scraper.js store-client.js structure-check.js alerts.js scripts/verify-live.js scripts/run-headed.js; do node --check "$f" || exit 1; done
         working-directory: server
 
   frontend:

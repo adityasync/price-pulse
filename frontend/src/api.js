@@ -17,6 +17,11 @@ export const api = {
   search: (q) => req(`/search?q=${encodeURIComponent(q)}`),
   track: (productId, optionId, optionLabel) =>
     req('/track', { method: 'POST', body: JSON.stringify({ productId, optionId, optionLabel }) }),
+  trackBulk: (productId, options) =>
+    req('/track/bulk', { method: 'POST', body: JSON.stringify({ productId, options }) }),
+  setFrequency: (id, frequencyMinutes) =>
+    req(`/tracked/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ frequencyMinutes }) }),
+  structureCheck: () => req('/structure-check'),
   tracked: () => req('/tracked'),
   history: (productId, optionId) =>
     req(`/products/${encodeURIComponent(productId)}/history?optionId=${encodeURIComponent(optionId)}`),
