@@ -256,10 +256,16 @@ async function searchStore(query) {
     pages.push(...batch);
   }
 
+  // Catalog pages can overlap (same item on two pages), so dedupe by ID.
+  const seen = new Set();
   const matches = [];
   for (const pg of pages) {
     for (const item of pg.results || []) {
-      if (String(item.name || '').toLowerCase().includes(q)) matches.push(item);
+      if (seen.has(item.id)) continue;
+      if (String(item.name || '').toLowerCase().includes(q)) {
+        seen.add(item.id);
+        matches.push(item);
+      }
       if (matches.length >= 20) break;
     }
     if (matches.length >= 20) break;
