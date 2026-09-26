@@ -49,6 +49,26 @@ function timeAgo(ts) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+// Minimal CSV row parser (handles quoted commas) for the export preview.
+function parseCsvRow(line) {
+  const cells = [];
+  let cur = '';
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quoted) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else quoted = false;
+      } else cur += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') { cells.push(cur); cur = ''; }
+    else cur += c;
+  }
+  cells.push(cur);
+  return cells;
+}
+
 // Same-day runs would all read "9/26/2026" — include clock time instead.
 function tickLabel(t) {
   const d = new Date(t);
@@ -161,6 +181,7 @@ export default function Dashboard() {
   const [tracked, setTracked] = useState([]);
   const [alerts, setAlerts] = useState({});
   const [latest, setLatest] = useState({});
+  const [preview, setPreview] = useState(null);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -193,12 +214,45 @@ export default function Dashboard() {
     return () => { live = false; };
   }, []);
 
+  async function previewCsv() {
+    if (preview) { setPreview(null); return; }
+    try {
+      const text = await (await fetch(api.exportCsvUrl())).text();
+      const lines = text.split('\n').filter((l) => l.trim() !== '');
+      setPreview({
+        count: Math.max(0, lines.length - 1),
+        header: parseCsvRow(lines[0] || ''),
+        rows: lines.slice(1).slice(-5).reverse().map(parseCsvRow),
+      });
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   if (selected) return <Detail item={selected} onBack={() => setSelected(null)} />;
 
   return (
     <section>
       <h1>Dashboard</h1>
-      <p><a href={api.exportCsvUrl()}><button>Export CSV</button></a></p>
+      <p>
+        <a href={api.exportCsvUrl()}><button>Export CSV</button></a>{' '}
+        <button onClick={previewCsv} style={{ background: '#fff', color: 'var(--accent)', border: '1px solid var(--accent)' }}>
+          {preview ? 'Hide preview' : 'Preview'}
+        </button>
+      </p>
+      {preview && (
+        <div>
+          <small>{preview.count} scrape attempts in file · latest 5 below</small>
+          <table border="1" cellPadding="4" style={{ borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+            <thead><tr>{preview.header.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+            <tbody>
+              {preview.rows.map((r, i) => (
+                <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
       {loading && <p>Loading tracked products…</p>}
       {!loading && tracked.length === 0 && <p>Nothing tracked yet — go to Search to track a product.</p>}

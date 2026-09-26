@@ -213,7 +213,8 @@ app.get('/export.csv', async (_req, res) => {
   });
 
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="price_history.csv"');
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  res.setHeader('Content-Disposition', `attachment; filename="price-pulse-${stamp}.csv"`);
   res.send(header + '\n' + rows.join('\n') + (rows.length ? '\n' : ''));
 });
 
