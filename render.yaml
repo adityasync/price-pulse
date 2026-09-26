@@ -1,0 +1,22 @@
+# Render blueprint for the backend. Frontend goes to Vercel separately.
+# In Render: New > Blueprint > connect price-pulse repo, or create the Web
+# Service manually with root directory `server/`, build `npm install`,
+# start `npm start`. Set env vars in the dashboard (never commit .env).
+services:
+  - type: web
+    name: price-pulse-backend
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: TARGET_STORE_URL
+        value: https://demo.inelabteamdev.com/
+      - key: CRON_SECRET
+        sync: false

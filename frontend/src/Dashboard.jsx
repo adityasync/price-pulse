@@ -35,7 +35,9 @@ function Detail({ item, onBack }) {
     () => history.map((h) => ({ ...h, ts: new Date(h.timestamp).getTime(), priceNum: h.price === null ? null : Number(h.price) })),
     [history]
   );
-  const badPoints = chartData.filter((d) => d.outcome !== 'success');
+  // Failed runs carry price=null so they can't be plotted — the line gap
+  // (connectNulls=false) plus the table below keep them visible, not hidden.
+  const badPoints = chartData.filter((d) => d.outcome !== 'success' && d.priceNum !== null);
 
   return (
     <div>
