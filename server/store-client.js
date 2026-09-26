@@ -211,6 +211,10 @@ async function fetchQuote(productId, optionId) {
   } catch {
     throw new RetryableError('quote payload failed to decrypt/parse');
   }
+  // The store flags quotes whose price hasn't settled yet (pending === true).
+  // Persisting those would store a stale number as if it were current —
+  // treat as transient and let the retry loop re-fetch instead.
+  if (quote.j === 1) throw new RetryableError('quote pending — price not settled');
   return {
     price: quote.q,
     stockCount: quote.a,
