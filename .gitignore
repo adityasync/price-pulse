@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Env / secrets — never commit
+.env
+.env.local
+*.pem
+*.key
+
+# Build output
+frontend/dist/
+server/*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temp probe scripts live outside the repo; nothing else to exclude.
